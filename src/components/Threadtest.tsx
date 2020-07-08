@@ -1,5 +1,9 @@
 import React from 'react';
-import { Client, KeyInfo, ThreadID, UserAuth } from '@textile/threads';
+import { createAPISig, Client, KeyInfo, ThreadID, UserAuth } from '@textile/hub';
+import { DBInfo } from '@textile/threads-client';
+
+const key = process.env.REACT_APP_HUB_KEY || '';
+const secret = process.env.REACT_APP_HUB_SECRET || '';
 
 const personSchema = {
   $id: 'https://example.com/person.schema.json',
@@ -44,27 +48,10 @@ interface Person {
   age: number;
 }
 
-const createPerson = (): Person => {
-  return {
-    _id: '',
-    firstName: 'Adam',
-    lastName: 'Doe',
-    age: 21,
-  };
-};
-
 async function getClientWithKeyInfo(): Promise<Client> {
-  const key = process.env.REACT_APP_HUB_KEY;
-  const secret = process.env.REACT_APP_HUB_SECRET;
-
-  if (!key || !secret) {
-    throw 'REACT_APP_HUB_KEY and REACT_APP_HUB_SECRET need to be set as env variable';
-  }
-
   const keyInfo: KeyInfo = {
     key,
     secret,
-    type: 0, // user group key
   };
 
   const client = await Client.withKeyInfo(keyInfo);
@@ -72,68 +59,70 @@ async function getClientWithKeyInfo(): Promise<Client> {
 }
 
 async function setup(auth?: UserAuth): Promise<void> {
+  if (!key || !secret) {
+    throw 'REACT_APP_HUB_KEY and REACT_APP_HUB_SECRET need to be set as env variable';
+  }
+
   const user = await Client.randomIdentity();
 
-  // const client = await Client.withUserAuth(auth);
+  // for our user
+  // const secondsExpiration = 3600;
+  // const expiration = new Date(Date.now() + 1000 * secondsExpiration);
+  // const apiSig = await createAPISig(secret, expiration);
+
   const client = await getClientWithKeyInfo();
 
   // a new token needs to be created on the hub (otherwise it throws)
   // ? ----> But this token is never used
   const token = await client.getToken(user);
 
-  // This thread is our DB
-  const thread: ThreadID = await client.newDB();
+  const threadId = ThreadID.fromRandom();
+  console.log('ThreadID', threadId.toString());
 
-  // This will be overriden right after
-  const register = await client.newCollection(thread, 'Person', personSchema);
-  console.log('register', register);
+  const thread = await client.newDB(threadId, 'space');
+  const threadString = thread.toString();
 
-  const list = await client.getCollectionIndexes(thread, 'Person');
-  console.log('list', list);
-
-  await client.updateCollection(thread, 'Person', schema2, [
-    {
-      path: 'age',
-      unique: false,
-    },
-  ]);
-
-  await client.create(thread, 'Person', [
-    {
-      _id: '',
-      fullName: 'Madonna',
-      age: 0,
-    },
-  ]);
-
-  const indexes = await client.getCollectionIndexes(thread, 'Person');
-  console.log('indexes', indexes);
-
-  const info = await client.getDBInfo(thread);
+  const info = await client.getDBInfo(threadId);
   console.log('info', info);
 
-  // throwing
-  const dbs = await client.listDBs();
-  console.log('dbs', dbs);
+  // This will be overriden right after
+  // const register = await client.newCollection(thread, 'Person', personSchema);
+  // console.log('register', register);
 
-  // // it needs an "_id" of type string
-  // const astronaut = {
-  //   _id: '',
-  //   name: 'Buzz',
-  //   missions: 13,
-  // };
-  // const collectionName = 'astronauts';
+  const astronaut = {
+    _id: '',
+    name: 'Buzz',
+    missions: 13,
+  };
+  const collectionName = 'astronauts';
 
-  // // create collection named $collectionName from the previously defined astronaut object
-  // await client.newCollectionFromObject(thread, collectionName, astronaut);
+  // create collection named $collectionName from the previously defined astronaut object
+  await client.newCollectionFromObject(thread, collectionName, astronaut);
+  await client.create(thread, collectionName, [{ ...astronaut }]);
+  const data = await client.find(thread, collectionName, {});
 
+  console.log('data', data);
   // // create a new instance un the collection $collectionName
   // await client.create(thread, collectionName, [{ name: 'Bla', missions: 11 }]);
 
-  // // get all the instances from this collection name
-  // const found = await client.find(thread, collectionName, {});
-
   // console.debug('found:', found.instancesList);
+  const user2 = await Client.randomIdentity();
+
+  // for our user
+  // const secondsExpiration = 3600;
+  // const expiration = new Date(Date.now() + 1000 * secondsExpiration);
+  // const apiSig = await createAPISig(secret, expiration);
+  const client2 = await getClientWithKeyInfo();
+
+  // a new token needs to be created on the hub (otherwise it throws)
+  // ? ----> But this token is never used
+  const token2 = await client2.getToken(user2);
+
+  // const info2 = await client2.getThread('space');
+  const thread2 = ThreadID.fromString(threadString);
+  const data2 = await client.find(thread2, collectionName, {});
+
+  console.log('data', data2);
 }
 
 const Threadtest = (): JSX.Element => {

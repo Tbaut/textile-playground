@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "@textile/hub": "^0.3.2",
     "@textile/threads": "^0.2.3",
     "@textile/threads-client": "^0.7.3",
     "@types/jest": "26.0.3",
